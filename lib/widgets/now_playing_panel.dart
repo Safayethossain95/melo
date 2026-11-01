@@ -279,6 +279,7 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
             final isCur = i == currentIndex;
 
             return TrackRow(
+              key: ValueKey(t.id),
               track: t,
               index: i,
               isCurrent: isCur,

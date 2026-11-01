@@ -57,11 +57,12 @@ class _LiveVisualizerState extends State<LiveVisualizer>
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, _) {
-        final t = _controller.value * 2 * pi;
-        final baseColor = widget.color ?? MeloColors.primaryTeal;
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, _) {
+          final t = _controller.value * 2 * pi;
+          final baseColor = widget.color ?? MeloColors.primaryTeal;
 
         return SizedBox(
           height: widget.height,
@@ -108,6 +109,7 @@ class _LiveVisualizerState extends State<LiveVisualizer>
           ),
         );
       },
-    );
-  }
+    ),
+  );
+}
 }

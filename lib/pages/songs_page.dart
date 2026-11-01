@@ -70,344 +70,371 @@ class _SongsPageState extends State<SongsPage> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final tracks = _filteredAndSortedTracks;
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isMobile = constraints.maxWidth < 650;
+    return ListenableBuilder(
+      listenable: widget.libraryRepo,
+      builder: (context, _) {
+        final tracks = _filteredAndSortedTracks;
 
-        return SingleChildScrollView(
-          padding: EdgeInsets.symmetric(
-            horizontal: isMobile ? 16.0 : 24.0,
-            vertical: isMobile ? 16.0 : 20.0,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header Row
-              if (isMobile) ...[
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'All Songs',
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        color: isDark ? MeloColors.darkTextPrimary : MeloColors.lightTextPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      '${tracks.length} tracks • Offline library',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: MeloColors.primaryTeal,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: MeloColors.primaryTeal,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                        onPressed: () {
-                          if (tracks.isNotEmpty) {
-                            widget.audioEngine.playTrack(tracks.first, newQueue: tracks);
-                          }
-                        },
-                        icon: const Icon(Icons.play_arrow_rounded, size: 20),
-                        label: const Text('Play All', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: isDark ? MeloColors.darkTextPrimary : MeloColors.lightTextPrimary,
-                          side: BorderSide(color: isDark ? MeloColors.darkBorder : MeloColors.lightBorder),
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                        onPressed: () {
-                          if (tracks.isNotEmpty) {
-                            widget.audioEngine.playTrack(tracks.first, newQueue: tracks);
-                            if (!widget.audioEngine.isShuffle) widget.audioEngine.toggleShuffle();
-                          }
-                        },
-                        icon: const Icon(Icons.shuffle_rounded, size: 18),
-                        label: const Text('Shuffle', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                      ),
-                    ),
-                  ],
-                ),
-              ] else ...[
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'All Songs',
-                            style: TextStyle(
-                              fontSize: 26,
-                              fontWeight: FontWeight.w800,
-                              color: isDark ? MeloColors.darkTextPrimary : MeloColors.lightTextPrimary,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '${tracks.length} tracks • Instant offline playback',
-                            style: const TextStyle(
-                              fontSize: 13,
-                              color: MeloColors.primaryTeal,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Row(
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final isMobile = constraints.maxWidth < 650;
+            final horizPadding = isMobile ? 16.0 : 24.0;
+            final vertPadding = isMobile ? 16.0 : 20.0;
+
+            return CustomScrollView(
+              slivers: [
+                SliverPadding(
+                  padding: EdgeInsets.only(
+                    left: horizPadding,
+                    right: horizPadding,
+                    top: vertPadding,
+                  ),
+                  sliver: SliverToBoxAdapter(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: MeloColors.primaryTeal,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                          onPressed: () {
-                            if (tracks.isNotEmpty) {
-                              widget.audioEngine.playTrack(tracks.first, newQueue: tracks);
-                            }
-                          },
-                          icon: const Icon(Icons.play_arrow_rounded, size: 20),
-                          label: const Text('Play All', style: TextStyle(fontWeight: FontWeight.w700)),
-                        ),
-                        const SizedBox(width: 8),
-                        OutlinedButton.icon(
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: isDark ? MeloColors.darkTextPrimary : MeloColors.lightTextPrimary,
-                            side: BorderSide(color: isDark ? MeloColors.darkBorder : MeloColors.lightBorder),
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                          onPressed: () {
-                            if (tracks.isNotEmpty) {
-                              widget.audioEngine.playTrack(tracks.first, newQueue: tracks);
-                              if (!widget.audioEngine.isShuffle) widget.audioEngine.toggleShuffle();
-                            }
-                          },
-                          icon: const Icon(Icons.shuffle_rounded, size: 18),
-                          label: const Text('Shuffle'),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ],
-
-              const SizedBox(height: 18),
-
-              // Instant Filter Search Input
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14),
-                decoration: BoxDecoration(
-                  color: isDark ? MeloColors.darkSurface2 : MeloColors.lightSurface2,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: isDark ? MeloColors.darkBorder : MeloColors.lightBorder),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.filter_list_rounded, size: 18, color: MeloColors.primaryTeal),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: TextField(
-                        controller: _filterController,
-                        onChanged: (_) => setState(() {}),
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: isDark ? MeloColors.darkTextPrimary : MeloColors.lightTextPrimary,
-                        ),
-                        decoration: InputDecoration(
-                          hintText: 'Filter by song title, artist, or album...',
-                          hintStyle: TextStyle(
-                            fontSize: 12,
-                            color: isDark ? MeloColors.darkTextMuted : MeloColors.lightTextMuted,
-                          ),
-                          border: InputBorder.none,
-                          isDense: true,
-                          contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
-                      ),
-                    ),
-                    if (_filterController.text.isNotEmpty)
-                      IconButton(
-                        icon: const Icon(Icons.clear_rounded, size: 16),
-                        onPressed: () {
-                          _filterController.clear();
-                          setState(() {});
-                        },
-                      ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 14),
-
-              // Table Column Headers: Hidden on Mobile, Sortable on Desktop
-              if (isMobile) ...[
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 4.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        '${tracks.length} tracks',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: MeloColors.darkTextMuted,
-                        ),
-                      ),
-                      PopupMenuButton<SongSortColumn>(
-                        tooltip: 'Sort tracks',
-                        color: isDark ? MeloColors.darkSurface1 : MeloColors.lightSurface1,
-                        elevation: 8,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          side: BorderSide(color: isDark ? MeloColors.darkBorder : MeloColors.lightBorder),
-                        ),
-                        onSelected: (col) {
-                          if (_sortColumn == col) {
-                            setState(() => _ascending = !_ascending);
-                          } else {
-                            setState(() {
-                              _sortColumn = col;
-                              _ascending = true;
-                            });
-                          }
-                        },
-                        itemBuilder: (ctx) => [
-                          PopupMenuItem(
-                            value: SongSortColumn.title,
-                            child: Text('Title ${_sortColumn == SongSortColumn.title ? (_ascending ? '↑' : '↓') : ''}'),
-                          ),
-                          PopupMenuItem(
-                            value: SongSortColumn.artist,
-                            child: Text('Artist ${_sortColumn == SongSortColumn.artist ? (_ascending ? '↑' : '↓') : ''}'),
-                          ),
-                          PopupMenuItem(
-                            value: SongSortColumn.album,
-                            child: Text('Album ${_sortColumn == SongSortColumn.album ? (_ascending ? '↑' : '↓') : ''}'),
-                          ),
-                          PopupMenuItem(
-                            value: SongSortColumn.duration,
-                            child: Text('Duration ${_sortColumn == SongSortColumn.duration ? (_ascending ? '↑' : '↓') : ''}'),
-                          ),
-                        ],
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                          decoration: BoxDecoration(
-                            color: isDark ? MeloColors.darkSurface2 : MeloColors.lightSurface2,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: isDark ? MeloColors.darkBorder : MeloColors.lightBorder),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
+                        // Header Row
+                        if (isMobile) ...[
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Icon(Icons.sort_rounded, size: 14, color: MeloColors.primaryTeal),
-                              const SizedBox(width: 4),
                               Text(
-                                'Sort: ${_sortColumn.name[0].toUpperCase()}${_sortColumn.name.substring(1)}',
+                                'All Songs',
                                 style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w800,
                                   color: isDark ? MeloColors.darkTextPrimary : MeloColors.lightTextPrimary,
                                 ),
                               ),
-                              const SizedBox(width: 2),
-                              Icon(
-                                _ascending ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
-                                size: 12,
-                                color: MeloColors.primaryTeal,
+                              const SizedBox(height: 3),
+                              Text(
+                                '${tracks.length} tracks • Offline library',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: MeloColors.primaryTeal,
+                                  fontWeight: FontWeight.w500,
+                                ),
                               ),
                             ],
                           ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: MeloColors.primaryTeal,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(vertical: 10),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  ),
+                                  onPressed: () {
+                                    if (tracks.isNotEmpty) {
+                                      widget.audioEngine.playTrack(tracks.first, newQueue: tracks);
+                                    }
+                                  },
+                                  icon: const Icon(Icons.play_arrow_rounded, size: 20),
+                                  label: const Text('Play All', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: isDark ? MeloColors.darkTextPrimary : MeloColors.lightTextPrimary,
+                                    side: BorderSide(color: isDark ? MeloColors.darkBorder : MeloColors.lightBorder),
+                                    padding: const EdgeInsets.symmetric(vertical: 10),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  ),
+                                  onPressed: () {
+                                    if (tracks.isNotEmpty) {
+                                      widget.audioEngine.playTrack(tracks.first, newQueue: tracks);
+                                      if (!widget.audioEngine.isShuffle) widget.audioEngine.toggleShuffle();
+                                    }
+                                  },
+                                  icon: const Icon(Icons.shuffle_rounded, size: 18),
+                                  label: const Text('Shuffle', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ] else ...[
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'All Songs',
+                                      style: TextStyle(
+                                        fontSize: 26,
+                                        fontWeight: FontWeight.w800,
+                                        color: isDark ? MeloColors.darkTextPrimary : MeloColors.lightTextPrimary,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '${tracks.length} tracks • Instant offline playback',
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        color: MeloColors.primaryTeal,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Row(
+                                children: [
+                                  ElevatedButton.icon(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: MeloColors.primaryTeal,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                    ),
+                                    onPressed: () {
+                                      if (tracks.isNotEmpty) {
+                                        widget.audioEngine.playTrack(tracks.first, newQueue: tracks);
+                                      }
+                                    },
+                                    icon: const Icon(Icons.play_arrow_rounded, size: 20),
+                                    label: const Text('Play All', style: TextStyle(fontWeight: FontWeight.w700)),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  OutlinedButton.icon(
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: isDark ? MeloColors.darkTextPrimary : MeloColors.lightTextPrimary,
+                                      side: BorderSide(color: isDark ? MeloColors.darkBorder : MeloColors.lightBorder),
+                                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                    ),
+                                    onPressed: () {
+                                      if (tracks.isNotEmpty) {
+                                        widget.audioEngine.playTrack(tracks.first, newQueue: tracks);
+                                        if (!widget.audioEngine.isShuffle) widget.audioEngine.toggleShuffle();
+                                      }
+                                    },
+                                    icon: const Icon(Icons.shuffle_rounded, size: 18),
+                                    label: const Text('Shuffle'),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ],
+
+                        const SizedBox(height: 18),
+
+                        // Instant Filter Search Input
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14),
+                          decoration: BoxDecoration(
+                            color: isDark ? MeloColors.darkSurface2 : MeloColors.lightSurface2,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: isDark ? MeloColors.darkBorder : MeloColors.lightBorder),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.filter_list_rounded, size: 18, color: MeloColors.primaryTeal),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: TextField(
+                                  controller: _filterController,
+                                  onChanged: (_) => setState(() {}),
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: isDark ? MeloColors.darkTextPrimary : MeloColors.lightTextPrimary,
+                                  ),
+                                  decoration: InputDecoration(
+                                    hintText: 'Filter by song title, artist, or album...',
+                                    hintStyle: TextStyle(
+                                      fontSize: 12,
+                                      color: isDark ? MeloColors.darkTextMuted : MeloColors.lightTextMuted,
+                                    ),
+                                    border: InputBorder.none,
+                                    isDense: true,
+                                    contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                                  ),
+                                ),
+                              ),
+                              if (_filterController.text.isNotEmpty)
+                                IconButton(
+                                  icon: const Icon(Icons.clear_rounded, size: 16),
+                                  onPressed: () {
+                                    _filterController.clear();
+                                    setState(() {});
+                                  },
+                                ),
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
+
+                        const SizedBox(height: 14),
+
+                        // Table Column Headers: Hidden on Mobile, Sortable on Desktop
+                        if (isMobile) ...[
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 4.0),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  '${tracks.length} tracks',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: MeloColors.darkTextMuted,
+                                  ),
+                                ),
+                                PopupMenuButton<SongSortColumn>(
+                                  tooltip: 'Sort tracks',
+                                  color: isDark ? MeloColors.darkSurface1 : MeloColors.lightSurface1,
+                                  elevation: 8,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    side: BorderSide(color: isDark ? MeloColors.darkBorder : MeloColors.lightBorder),
+                                  ),
+                                  onSelected: (col) {
+                                    if (_sortColumn == col) {
+                                      setState(() => _ascending = !_ascending);
+                                    } else {
+                                      setState(() {
+                                        _sortColumn = col;
+                                        _ascending = true;
+                                      });
+                                    }
+                                  },
+                                  itemBuilder: (ctx) => [
+                                    PopupMenuItem(
+                                      value: SongSortColumn.title,
+                                      child: Text('Title ${_sortColumn == SongSortColumn.title ? (_ascending ? '↑' : '↓') : ''}'),
+                                    ),
+                                    PopupMenuItem(
+                                      value: SongSortColumn.artist,
+                                      child: Text('Artist ${_sortColumn == SongSortColumn.artist ? (_ascending ? '↑' : '↓') : ''}'),
+                                    ),
+                                    PopupMenuItem(
+                                      value: SongSortColumn.album,
+                                      child: Text('Album ${_sortColumn == SongSortColumn.album ? (_ascending ? '↑' : '↓') : ''}'),
+                                    ),
+                                    PopupMenuItem(
+                                      value: SongSortColumn.duration,
+                                      child: Text('Duration ${_sortColumn == SongSortColumn.duration ? (_ascending ? '↑' : '↓') : ''}'),
+                                    ),
+                                  ],
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                    decoration: BoxDecoration(
+                                      color: isDark ? MeloColors.darkSurface2 : MeloColors.lightSurface2,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: isDark ? MeloColors.darkBorder : MeloColors.lightBorder),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(Icons.sort_rounded, size: 14, color: MeloColors.primaryTeal),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          'Sort: ${_sortColumn.name[0].toUpperCase()}${_sortColumn.name.substring(1)}',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
+                                            color: isDark ? MeloColors.darkTextPrimary : MeloColors.lightTextPrimary,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 2),
+                                        Icon(
+                                          _ascending ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
+                                          size: 12,
+                                          color: MeloColors.primaryTeal,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ] else ...[
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 8.0),
+                            child: Row(
+                              children: [
+                                const SizedBox(width: 34, child: Center(child: Text('#', style: TextStyle(fontSize: 12, color: MeloColors.darkTextMuted)))),
+                                const SizedBox(width: 62),
+                                Expanded(
+                                  flex: 5,
+                                  child: _buildColumnHeader('TITLE', SongSortColumn.title),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  flex: 4,
+                                  child: _buildColumnHeader('ALBUM', SongSortColumn.album),
+                                ),
+                                const SizedBox(width: 14),
+                                _buildColumnHeader('DURATION', SongSortColumn.duration),
+                                const SizedBox(width: 50),
+                              ],
+                            ),
+                          ),
+                          const Divider(color: MeloColors.darkBorder, height: 1),
+                          const SizedBox(height: 6),
+                        ],
+                      ],
+                    ),
                   ),
                 ),
-              ] else ...[
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 8.0),
-                  child: Row(
-                    children: [
-                      const SizedBox(width: 34, child: Center(child: Text('#', style: TextStyle(fontSize: 12, color: MeloColors.darkTextMuted)))),
-                      const SizedBox(width: 62),
-                      Expanded(
-                        flex: 5,
-                        child: _buildColumnHeader('TITLE', SongSortColumn.title),
+
+                // Virtualized Track List or Empty State
+                if (tracks.isEmpty)
+                  const SliverToBoxAdapter(
+                    child: Center(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(vertical: 40),
+                        child: Text('No tracks match your filter', style: TextStyle(color: MeloColors.darkTextMuted)),
                       ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        flex: 4,
-                        child: _buildColumnHeader('ALBUM', SongSortColumn.album),
-                      ),
-                      const SizedBox(width: 14),
-                      _buildColumnHeader('DURATION', SongSortColumn.duration),
-                      const SizedBox(width: 50),
-                    ],
+                    ),
+                  )
+                else
+                  SliverPadding(
+                    padding: EdgeInsets.symmetric(horizontal: horizPadding),
+                    sliver: ListenableBuilder(
+                      listenable: widget.audioEngine,
+                      builder: (context, _) {
+                        final curTrackId = widget.audioEngine.currentTrack?.id;
+                        final isPlaying = widget.audioEngine.isPlaying;
+
+                        return SliverList.builder(
+                          itemCount: tracks.length,
+                          itemBuilder: (context, i) {
+                            final t = tracks[i];
+                            return TrackRow(
+                              key: ValueKey(t.id),
+                              track: t,
+                              index: i,
+                              isCurrent: curTrackId == t.id,
+                              isPlaying: isPlaying,
+                              onTap: () => widget.audioEngine.playTrack(t, newQueue: tracks),
+                              onToggleFavorite: () => widget.libraryRepo.toggleFavorite(t.id),
+                              onPlayNext: () => widget.audioEngine.playNext(t),
+                              onAddToQueue: () => widget.audioEngine.addToQueue(t),
+                            );
+                          },
+                        );
+                      },
+                    ),
                   ),
+
+                const SliverToBoxAdapter(
+                  child: SizedBox(height: 120),
                 ),
-                const Divider(color: MeloColors.darkBorder, height: 1),
-                const SizedBox(height: 6),
               ],
-
-              // Track List
-              if (tracks.isEmpty)
-                const Center(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(vertical: 40),
-                    child: Text('No tracks match your filter', style: TextStyle(color: MeloColors.darkTextMuted)),
-                  ),
-                )
-              else
-                ListView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: tracks.length,
-                  itemBuilder: (context, i) {
-                    final t = tracks[i];
-                    final isCur = widget.audioEngine.currentTrack?.id == t.id;
-
-                    return TrackRow(
-                      track: t,
-                      index: i,
-                      isCurrent: isCur,
-                      isPlaying: widget.audioEngine.isPlaying,
-                      onTap: () => widget.audioEngine.playTrack(t, newQueue: tracks),
-                      onToggleFavorite: () => widget.libraryRepo.toggleFavorite(t.id),
-                      onPlayNext: () => widget.audioEngine.playNext(t),
-                      onAddToQueue: () => widget.audioEngine.addToQueue(t),
-                    );
-                  },
-                ),
-
-              const SizedBox(height: 120),
-            ],
-          ),
+            );
+          },
         );
       },
     );

@@ -194,21 +194,30 @@ class _AlbumsPageState extends State<AlbumsPage> {
                 ],
               ),
               const SizedBox(height: 20),
-              ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: tracks.length,
-                itemBuilder: (context, i) {
-                  final t = tracks[i];
-                  return TrackRow(
-                    track: t,
-                    index: i,
-                    isCurrent: widget.audioEngine.currentTrack?.id == t.id,
-                    isPlaying: widget.audioEngine.isPlaying,
-                    onTap: () => widget.audioEngine.playTrack(t, newQueue: tracks),
-                    onToggleFavorite: () => widget.libraryRepo.toggleFavorite(t.id),
-                    onPlayNext: () => widget.audioEngine.playNext(t),
-                    onAddToQueue: () => widget.audioEngine.addToQueue(t),
+              ListenableBuilder(
+                listenable: widget.audioEngine,
+                builder: (context, _) {
+                  final curTrackId = widget.audioEngine.currentTrack?.id;
+                  final isPlaying = widget.audioEngine.isPlaying;
+
+                  return ListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: tracks.length,
+                    itemBuilder: (context, i) {
+                      final t = tracks[i];
+                      return TrackRow(
+                        key: ValueKey(t.id),
+                        track: t,
+                        index: i,
+                        isCurrent: curTrackId == t.id,
+                        isPlaying: isPlaying,
+                        onTap: () => widget.audioEngine.playTrack(t, newQueue: tracks),
+                        onToggleFavorite: () => widget.libraryRepo.toggleFavorite(t.id),
+                        onPlayNext: () => widget.audioEngine.playNext(t),
+                        onAddToQueue: () => widget.audioEngine.addToQueue(t),
+                      );
+                    },
                   );
                 },
               ),

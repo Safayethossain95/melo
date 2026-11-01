@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:audiotags/audiotags.dart';
@@ -19,6 +20,8 @@ class LibraryRepository extends ChangeNotifier {
   final List<Track> _recentlyPlayed = [];
   final List<Playlist> _playlists = [];
   final List<String> _customFolderPaths = [];
+  List<Track>? _cachedMostPlayed;
+  Timer? _saveDebounceTimer;
 
   bool _isFirstLaunch = true;
   bool _isScanning = false;
@@ -32,6 +35,16 @@ class LibraryRepository extends ChangeNotifier {
   List<Track> get recentlyPlayed => List.unmodifiable(_recentlyPlayed);
   List<Playlist> get playlists => List.unmodifiable(_playlists);
   List<String> get customFolderPaths => List.unmodifiable(_customFolderPaths);
+
+  List<Track> get mostPlayed {
+    if (_cachedMostPlayed != null && _cachedMostPlayed!.length == _tracks.length) {
+      return _cachedMostPlayed!;
+    }
+    final list = List<Track>.from(_tracks)
+      ..sort((a, b) => b.playCount.compareTo(a.playCount));
+    _cachedMostPlayed = list;
+    return list;
+  }
 
   bool get isFirstLaunch => _isFirstLaunch;
   bool get isScanning => _isScanning;
@@ -534,6 +547,7 @@ class LibraryRepository extends ChangeNotifier {
   }
 
   void _rebuildCrates() {
+    _cachedMostPlayed = null;
     _crates.clear();
     final Map<String, List<Track>> folderMap = {};
 
@@ -557,12 +571,12 @@ class LibraryRepository extends ChangeNotifier {
     final idx = _tracks.indexWhere((t) => t.id == trackId);
     if (idx != -1) {
       _tracks[idx].isFavorite = !_tracks[idx].isFavorite;
-      _saveToStorage();
+      _scheduleSaveToStorage();
       notifyListeners();
     }
   }
 
-  /// Record Track Played
+  /// Record Track Played (lightweight and completely non-blocking)
   void recordTrackPlayed(Track track) {
     final idx = _tracks.indexWhere((t) => t.id == track.id);
     if (idx != -1) {
@@ -575,8 +589,15 @@ class LibraryRepository extends ChangeNotifier {
       _recentlyPlayed.removeLast();
     }
 
-    _saveToStorage();
-    notifyListeners();
+    // Schedule debounced persistent save so UI doesn't stutter on click-to-sound
+    _scheduleSaveToStorage();
+  }
+
+  void _scheduleSaveToStorage() {
+    _saveDebounceTimer?.cancel();
+    _saveDebounceTimer = Timer(const Duration(seconds: 2), () {
+      _saveToStorage();
+    });
   }
 
   /// Create Playlist

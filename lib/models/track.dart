@@ -155,4 +155,12 @@ class Track {
       isUnavailable: isUnavailable ?? this.isUnavailable,
     );
   }
+
+  String get extension {
+    final dotIdx = uri.lastIndexOf('.');
+    if (dotIdx != -1 && dotIdx < uri.length - 1) {
+      return uri.substring(dotIdx + 1).toUpperCase();
+    }
+    return 'AUDIO';
+  }
 }

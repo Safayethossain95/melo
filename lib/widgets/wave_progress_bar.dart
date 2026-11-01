@@ -76,17 +76,19 @@ class _WaveProgressBarState extends State<WaveProgressBar> {
                   child: SizedBox(
                     width: width,
                     height: widget.height,
-                    child: CustomPaint(
-                      size: Size(width, widget.height),
-                      painter: _WaveformPainter(
-                        peaks: widget.peaks,
-                        progress: playbackPercent,
-                        activeGradient: const LinearGradient(
-                          colors: [MeloColors.tealLight, MeloColors.primaryTeal],
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
+                    child: RepaintBoundary(
+                      child: CustomPaint(
+                        size: Size(width, widget.height),
+                        painter: _WaveformPainter(
+                          peaks: widget.peaks,
+                          progress: playbackPercent,
+                          activeGradient: const LinearGradient(
+                            colors: [MeloColors.tealLight, MeloColors.primaryTeal],
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                          ),
+                          inactiveColor: const Color(0x335B7476),
                         ),
-                        inactiveColor: const Color(0x335B7476),
                       ),
                     ),
                   ),

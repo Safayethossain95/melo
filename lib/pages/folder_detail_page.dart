@@ -326,24 +326,33 @@ class FolderDetailPage extends StatelessWidget {
                   const SizedBox(height: 8),
                 ],
 
-                // Track Rows
-                ListView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: crate.tracks.length,
-                  itemBuilder: (context, i) {
-                    final t = crate.tracks[i];
-                    final isCur = audioEngine.currentTrack?.id == t.id;
+                // Track Rows (Reactive to Audio Engine)
+                ListenableBuilder(
+                  listenable: audioEngine,
+                  builder: (context, _) {
+                    final curTrackId = audioEngine.currentTrack?.id;
+                    final isPlaying = audioEngine.isPlaying;
 
-                    return TrackRow(
-                      track: t,
-                      index: i,
-                      isCurrent: isCur,
-                      isPlaying: audioEngine.isPlaying,
-                      onTap: () => audioEngine.playTrack(t, newQueue: crate.tracks),
-                      onToggleFavorite: () => libraryRepo.toggleFavorite(t.id),
-                      onPlayNext: () => audioEngine.playNext(t),
-                      onAddToQueue: () => audioEngine.addToQueue(t),
+                    return ListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: crate.tracks.length,
+                      itemBuilder: (context, i) {
+                        final t = crate.tracks[i];
+                        final isCur = curTrackId == t.id;
+
+                        return TrackRow(
+                          key: ValueKey(t.id),
+                          track: t,
+                          index: i,
+                          isCurrent: isCur,
+                          isPlaying: isPlaying,
+                          onTap: () => audioEngine.playTrack(t, newQueue: crate.tracks),
+                          onToggleFavorite: () => libraryRepo.toggleFavorite(t.id),
+                          onPlayNext: () => audioEngine.playNext(t),
+                          onAddToQueue: () => audioEngine.addToQueue(t),
+                        );
+                      },
                     );
                   },
                 ),
