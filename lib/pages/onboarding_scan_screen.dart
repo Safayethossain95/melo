@@ -74,8 +74,9 @@ class _OnboardingScanScreenState extends State<OnboardingScanScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: MeloColors.darkBgBase,
-      body: Center(
-        child: SingleChildScrollView(
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 28.0, vertical: 36.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -331,6 +332,7 @@ class _OnboardingScanScreenState extends State<OnboardingScanScreen>
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

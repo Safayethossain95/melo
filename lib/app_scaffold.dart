@@ -204,11 +204,20 @@ class _AppScaffoldState extends State<AppScaffold> {
         builder: (context, constraints) {
           final isDesktop = constraints.maxWidth >= 900;
 
-          return Scaffold(
-            backgroundColor: isDark ? MeloColors.darkBgBase : MeloColors.lightBgBase,
-            body: Stack(
-              children: [
-                // Main Application Layout
+          return AnnotatedRegion<SystemUiOverlayStyle>(
+            value: SystemUiOverlayStyle(
+              statusBarColor: Colors.transparent,
+              statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+              systemNavigationBarColor: isDark ? MeloColors.darkSurface1 : MeloColors.lightSurface1,
+              systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+            ),
+            child: Scaffold(
+              backgroundColor: isDark ? MeloColors.darkBgBase : MeloColors.lightBgBase,
+              body: SafeArea(
+                bottom: false,
+                child: Stack(
+                  children: [
+                    // Main Application Layout
                 Row(
                   children: [
                     // Left Navigation Sidebar (Desktop/Tablet)
@@ -282,9 +291,11 @@ class _AppScaffoldState extends State<AppScaffold> {
                 const LatencyProbeOverlay(),
               ],
             ),
-            // Bottom navigation bar for mobile compact view
-            bottomNavigationBar: !isDesktop ? _buildMobileBottomBar(isDark) : null,
-          );
+          ),
+          // Bottom navigation bar for mobile compact view
+          bottomNavigationBar: !isDesktop ? _buildMobileBottomBar(isDark) : null,
+        ),
+      );
         },
       ),
     );
