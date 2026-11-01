@@ -34,12 +34,6 @@ class TrackRow extends StatefulWidget {
 class _TrackRowState extends State<TrackRow> {
   bool _isHovered = false;
 
-  String _formatDuration(Duration d) {
-    final mins = d.inMinutes;
-    final secs = d.inSeconds % 60;
-    return '$mins:${secs.toString().padLeft(2, '0')}';
-  }
-
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -177,113 +171,24 @@ class _TrackRowState extends State<TrackRow> {
                     ),
                   ),
                 ),
-              // Format Pill (.flac / .wav / .mp3)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: (widget.track.extension == 'FLAC' || widget.track.extension == 'WAV')
-                      ? MeloColors.primaryTeal.withValues(alpha: 0.15)
-                      : (isDark ? MeloColors.darkSurface2 : MeloColors.lightSurface2),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  widget.track.extension,
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: (widget.track.extension == 'FLAC' || widget.track.extension == 'WAV')
-                        ? MeloColors.tealLight
-                        : (isDark ? MeloColors.darkTextMuted : MeloColors.lightTextMuted),
-                  ),
-                ),
-              ),
-              SizedBox(width: isCompact ? 8 : 12),
-              // Favorite button
+              const SizedBox(width: 8),
+              // Functional Favorite Heart on the right edge
               IconButton(
                 padding: EdgeInsets.zero,
-                constraints: const BoxConstraints.tightFor(width: 28, height: 28),
+                constraints: const BoxConstraints.tightFor(width: 36, height: 36),
+                splashRadius: 18,
                 icon: Icon(
                   widget.track.isFavorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                  size: 18,
+                  size: 20,
                   color: widget.track.isFavorite
                       ? MeloColors.favoriteRed
                       : (isDark ? MeloColors.darkTextMuted : MeloColors.lightTextMuted),
                 ),
-                onPressed: widget.onToggleFavorite,
-                tooltip: widget.track.isFavorite ? 'Remove favorite' : 'Add favorite',
-              ),
-              // Duration
-              SizedBox(
-                width: isCompact ? 36 : 46,
-                child: Text(
-                  _formatDuration(widget.track.duration),
-                  textAlign: TextAlign.end,
-                  style: TextStyle(
-                    fontSize: isCompact ? 11 : 12,
-                    fontWeight: FontWeight.w500,
-                    color: isDark ? MeloColors.darkTextMuted : MeloColors.lightTextMuted,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 2),
-              // Context Menu ("⋯")
-              PopupMenuButton<String>(
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints.tightFor(width: 28, height: 28),
-                icon: Icon(
-                  Icons.more_horiz_rounded,
-                  size: 18,
-                  color: isDark ? MeloColors.darkTextMuted : MeloColors.lightTextMuted,
-                ),
-                color: isDark ? MeloColors.darkSurface1 : MeloColors.lightSurface1,
-                elevation: 8,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  side: BorderSide(
-                    color: isDark ? MeloColors.darkBorder : MeloColors.lightBorder,
-                  ),
-                ),
-                onSelected: (val) {
-                  if (val == 'play_next') widget.onPlayNext();
-                  if (val == 'queue') widget.onAddToQueue();
-                  if (val == 'favorite') widget.onToggleFavorite();
+                onPressed: () {
+                  widget.onToggleFavorite();
+                  setState(() {});
                 },
-                itemBuilder: (context) => [
-                  const PopupMenuItem(
-                    value: 'play_next',
-                    child: Row(
-                      children: [
-                        Icon(Icons.playlist_play_rounded, size: 18, color: MeloColors.primaryTeal),
-                        SizedBox(width: 10),
-                        Text('Play Next'),
-                      ],
-                    ),
-                  ),
-                  const PopupMenuItem(
-                    value: 'queue',
-                    child: Row(
-                      children: [
-                        Icon(Icons.queue_music_rounded, size: 18, color: MeloColors.primaryTeal),
-                        SizedBox(width: 10),
-                        Text('Add to Queue'),
-                      ],
-                    ),
-                  ),
-                  PopupMenuItem(
-                    value: 'favorite',
-                    child: Row(
-                      children: [
-                        Icon(
-                          widget.track.isFavorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                          size: 18,
-                          color: MeloColors.favoriteRed,
-                        ),
-                        SizedBox(width: 10),
-                        Text(widget.track.isFavorite ? 'Remove Favorite' : 'Add to Favorites'),
-                      ],
-                    ),
-                  ),
-                ],
+                tooltip: widget.track.isFavorite ? 'Remove favorite' : 'Add favorite',
               ),
             ],
           ),
