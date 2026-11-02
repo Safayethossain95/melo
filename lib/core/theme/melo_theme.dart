@@ -50,6 +50,7 @@ class MeloTheme {
         surfaceContainerHighest: MeloColors.darkSurface2,
         onSurface: MeloColors.darkTextPrimary,
         onPrimary: MeloColors.darkBgBase,
+        onSecondaryContainer: MeloColors.tealLight,
       ),
       fontFamily: 'Segoe UI',
       cardColor: MeloColors.darkSurface1,

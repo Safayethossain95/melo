@@ -13,10 +13,8 @@ import 'pages/recently_played_page.dart';
 import 'pages/settings_page.dart';
 import 'pages/songs_page.dart';
 import 'services/audio_engine.dart';
-import 'services/latency_probe.dart';
 import 'services/library_repository.dart';
 import 'widgets/floating_player_bar.dart';
-import 'widgets/latency_probe_overlay.dart';
 import 'widgets/melo_logo.dart';
 import 'widgets/now_playing_panel.dart';
 import 'widgets/track_row.dart';
@@ -96,12 +94,6 @@ class _AppScaffoldState extends State<AppScaffold> {
     final key = event.logicalKey;
     final isControl = HardwareKeyboard.instance.isControlPressed;
     final isShift = HardwareKeyboard.instance.isShiftPressed;
-
-    // Ctrl+Shift+L: Latency probe overlay
-    if (isControl && isShift && key == LogicalKeyboardKey.keyL) {
-      LatencyProbe().toggleOverlay();
-      return;
-    }
 
     // Ctrl+K or '/': Focus search
     if ((isControl && key == LogicalKeyboardKey.keyK) || key == LogicalKeyboardKey.slash) {
@@ -269,16 +261,14 @@ class _AppScaffoldState extends State<AppScaffold> {
                         showModalBottomSheet(
                           context: context,
                           isScrollControlled: true,
+                          useSafeArea: false,
                           backgroundColor: Colors.transparent,
                           builder: (ctx) => FractionallySizedBox(
-                            heightFactor: 0.92,
-                            child: ClipRRect(
-                              borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-                              child: NowPlayingPanel(
-                                audioEngine: widget.audioEngine,
-                                libraryRepo: widget.libraryRepo,
-                                onClose: () => Navigator.pop(ctx),
-                              ),
+                            heightFactor: 1.0,
+                            child: NowPlayingPanel(
+                              audioEngine: widget.audioEngine,
+                              libraryRepo: widget.libraryRepo,
+                              onClose: () => Navigator.pop(ctx),
                             ),
                           ),
                         );
@@ -286,9 +276,6 @@ class _AppScaffoldState extends State<AppScaffold> {
                     },
                   ),
                 ),
-
-                // Latency Probe Debug Overlay (Ctrl+Shift+L)
-                const LatencyProbeOverlay(),
               ],
             ),
           ),
@@ -371,14 +358,17 @@ class _AppScaffoldState extends State<AppScaffold> {
             ),
           ),
           SizedBox(width: isDesktop ? 14 : 8),
-          // Latency Probe status button
+          // Theme Toggle quick action
           IconButton(
-            icon: const Icon(Icons.speed_rounded, size: 20),
-            color: MeloColors.tealLight,
-            tooltip: 'Instant Playback Latency Probe (Ctrl+Shift+L)',
+            icon: Icon(
+              isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+              size: 20,
+              color: isDark ? MeloColors.warningAmber : MeloColors.tealDeep,
+            ),
+            tooltip: isDark ? 'Switch to Light Theme (Remembers in local storage)' : 'Switch to Dark Theme (Remembers in local storage)',
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-            onPressed: () => LatencyProbe().toggleOverlay(),
+            onPressed: () => widget.onThemeToggle(!isDark),
           ),
           // Now Playing toggle (Desktop)
           if (isDesktop)
@@ -532,23 +522,86 @@ class _AppScaffoldState extends State<AppScaffold> {
   }
 
   Widget _buildMobileBottomBar(bool isDark) {
-    return NavigationBar(
-      backgroundColor: isDark ? MeloColors.darkSurface1 : MeloColors.lightSurface1,
-      indicatorColor: MeloColors.primaryTeal.withValues(alpha: 0.25),
-      selectedIndex: _routeToBottomIndex(_currentRoute),
-      onDestinationSelected: (idx) {
-        _searchController.clear();
-        setState(() {
-          _currentRoute = _bottomIndexToRoute(idx);
-        });
-      },
-      destinations: const [
-        NavigationDestination(icon: Icon(Icons.home_rounded), label: 'Home'),
-        NavigationDestination(icon: Icon(Icons.folder_rounded), label: 'Folders'),
-        NavigationDestination(icon: Icon(Icons.music_note_rounded), label: 'Songs'),
-        NavigationDestination(icon: Icon(Icons.favorite_rounded), label: 'Favorites'),
-        NavigationDestination(icon: Icon(Icons.settings_rounded), label: 'Settings'),
-      ],
+    final activeColor = isDark ? MeloColors.tealLight : MeloColors.tealDeep;
+    final inactiveColor = isDark ? Colors.white60 : Colors.black54;
+
+    return NavigationBarTheme(
+      data: NavigationBarThemeData(
+        indicatorColor: isDark
+            ? MeloColors.primaryTeal.withValues(alpha: 0.32)
+            : MeloColors.primaryTeal.withValues(alpha: 0.20),
+        indicatorShape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: isDark
+              ? BorderSide(color: MeloColors.primaryTeal.withValues(alpha: 0.50), width: 1.2)
+              : BorderSide.none,
+        ),
+        iconTheme: WidgetStateProperty.resolveWith<IconThemeData?>((states) {
+          if (states.contains(WidgetState.selected)) {
+            return IconThemeData(
+              color: activeColor,
+              size: 24,
+            );
+          }
+          return IconThemeData(
+            color: inactiveColor,
+            size: 24,
+          );
+        }),
+        labelTextStyle: WidgetStateProperty.resolveWith<TextStyle?>((states) {
+          if (states.contains(WidgetState.selected)) {
+            return TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: activeColor,
+            );
+          }
+          return TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            color: inactiveColor,
+          );
+        }),
+      ),
+      child: NavigationBar(
+        backgroundColor: isDark ? MeloColors.darkSurface1 : MeloColors.lightSurface1,
+        elevation: 8,
+        shadowColor: Colors.black45,
+        selectedIndex: _routeToBottomIndex(_currentRoute),
+        onDestinationSelected: (idx) {
+          _searchController.clear();
+          setState(() {
+            _currentRoute = _bottomIndexToRoute(idx);
+          });
+        },
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home_rounded),
+            label: 'Home',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.folder_outlined),
+            selectedIcon: Icon(Icons.folder_rounded),
+            label: 'Folders',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.music_note_outlined),
+            selectedIcon: Icon(Icons.music_note_rounded),
+            label: 'Songs',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.favorite_outline_rounded),
+            selectedIcon: Icon(Icons.favorite_rounded),
+            label: 'Favorites',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.settings_outlined),
+            selectedIcon: Icon(Icons.settings_rounded),
+            label: 'Settings',
+          ),
+        ],
+      ),
     );
   }
 

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import '../core/theme/melo_theme.dart';
 import '../models/track.dart';
+import 'bouncing_tap.dart';
 import 'live_visualizer.dart';
+import 'song_artwork.dart';
 
 class TrackRow extends StatefulWidget {
   final Track track;
@@ -46,16 +48,16 @@ class _TrackRowState extends State<TrackRow> {
             : Colors.transparent);
 
     final titleColor = widget.isCurrent
-        ? MeloColors.tealLight
+        ? (isDark ? MeloColors.tealLight : Colors.black)
         : (isDark ? MeloColors.darkTextPrimary : MeloColors.lightTextPrimary);
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
       cursor: SystemMouseCursors.click,
-      child: GestureDetector(
+      child: BouncingTap(
         onTap: widget.onTap,
-        behavior: HitTestBehavior.opaque,
+        scaleDown: 0.965,
         child: Container(
           padding: EdgeInsets.symmetric(horizontal: isCompact ? 8 : 14, vertical: 8),
           decoration: BoxDecoration(
@@ -72,12 +74,12 @@ class _TrackRowState extends State<TrackRow> {
             children: [
               // Index / Equalizer / Hover Play
               SizedBox(
-                width: isCompact ? 22 : 34,
+                width: isCompact ? 24 : 34,
                 child: Center(
                   child: widget.isCurrent && widget.isPlaying
                       ? const LiveVisualizer(
                           isPlaying: true,
-                          barCount: 4,
+                          barCount: 3,
                           height: 14,
                         )
                       : (_isHovered
@@ -102,25 +104,31 @@ class _TrackRowState extends State<TrackRow> {
               ),
               SizedBox(width: isCompact ? 6 : 8),
               // Track Artwork Thumbnail
-              Container(
+              SongArtwork(
+                track: widget.track,
                 width: isCompact ? 36 : 40,
                 height: isCompact ? 36 : 40,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(8),
-                  gradient: LinearGradient(
-                    colors: [
-                      Color((widget.track.id.hashCode & 0x00FFFFFF) | 0xFF000000),
-                      MeloColors.tealDeep,
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+                borderRadius: BorderRadius.circular(8),
+                fallbackPlaceholder: Container(
+                  width: isCompact ? 36 : 40,
+                  height: isCompact ? 36 : 40,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8),
+                    gradient: LinearGradient(
+                      colors: [
+                        Color((widget.track.id.hashCode & 0x00FFFFFF) | 0xFF000000),
+                        MeloColors.tealDeep,
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
                   ),
-                ),
-                child: Center(
-                  child: Icon(
-                    widget.isCurrent && widget.isPlaying ? Icons.graphic_eq_rounded : Icons.music_note_rounded,
-                    size: isCompact ? 18 : 20,
-                    color: Colors.white.withValues(alpha: 0.9),
+                  child: Center(
+                    child: Icon(
+                      widget.isCurrent && widget.isPlaying ? Icons.graphic_eq_rounded : Icons.music_note_rounded,
+                      size: isCompact ? 18 : 20,
+                      color: Colors.white.withValues(alpha: 0.9),
+                    ),
                   ),
                 ),
               ),

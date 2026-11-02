@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/theme/melo_theme.dart';
 import '../services/audio_engine.dart';
-import '../services/latency_probe.dart';
 import '../services/library_repository.dart';
 import '../widgets/glass_container.dart';
 import '../widgets/melo_logo.dart';
@@ -245,25 +244,16 @@ class _SettingsPageState extends State<SettingsPage> {
                   children: [
                     SwitchListTile(
                       contentPadding: EdgeInsets.zero,
-                      title: const Text('Dark Theme (Default)', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                      subtitle: const Text('Toggle between deep ink-teal black and soft light theme', style: TextStyle(fontSize: 12, color: MeloColors.darkTextMuted)),
+                      title: const Text('Dark Theme', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                      subtitle: Text(
+                        widget.isDarkMode
+                            ? 'Dark theme active • Saved in local storage (auto-switch disabled)'
+                            : 'Light theme active • Saved in local storage (auto-switch disabled)',
+                        style: const TextStyle(fontSize: 12, color: MeloColors.darkTextMuted),
+                      ),
                       value: widget.isDarkMode,
                       activeThumbColor: MeloColors.primaryTeal,
                       onChanged: widget.onThemeToggle,
-                    ),
-                    const Divider(color: MeloColors.darkBorder),
-                    _buildActionTile(
-                      icon: Icons.speed_rounded,
-                      title: 'Instant Playback Latency Probe',
-                      subtitle: 'Show real-time click-to-sound performance overlay (Ctrl+Shift+L)',
-                      trailing: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: MeloColors.tealDeep,
-                          foregroundColor: Colors.white,
-                        ),
-                        onPressed: () => LatencyProbe().toggleOverlay(),
-                        child: const Text('Toggle Overlay'),
-                      ),
                     ),
                     const Divider(color: MeloColors.darkBorder),
                     _buildActionTile(

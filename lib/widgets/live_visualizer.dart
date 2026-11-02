@@ -79,10 +79,12 @@ class _LiveVisualizerState extends State<LiveVisualizer>
                   : 0.15;
 
               final barHeight = (widget.height * energy).clamp(4.0, widget.height);
+              final barWidth = widget.barCount <= 4 ? 3.0 : 3.5;
+              final barMargin = widget.barCount <= 4 ? 1.5 : 2.0;
 
               return Container(
-                margin: const EdgeInsets.symmetric(horizontal: 2.0),
-                width: 3.5,
+                margin: EdgeInsets.symmetric(horizontal: barMargin),
+                width: barWidth,
                 height: barHeight,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(

@@ -116,6 +116,21 @@ class LibraryRepository extends ChangeNotifier {
 
     final samples = [
       Track(
+        id: 'seed_dogallan',
+        title: "Do Gallan - Let's Talk",
+        artist: 'Garry Sandhu',
+        album: 'Do Gallan',
+        duration: const Duration(minutes: 3, seconds: 12),
+        uri: 'assets/audio/cyber_teal.wav',
+        isAsset: true,
+        folderPath: 'Punjabi Hits',
+        folderName: 'Now Playing',
+        genre: 'Pop',
+        year: 2021,
+        bitrate: 320,
+        isFavorite: false,
+      ),
+      Track(
         id: 'seed_1',
         title: 'Cyber Teal',
         artist: 'Neon Horizon',

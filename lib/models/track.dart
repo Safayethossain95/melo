@@ -19,6 +19,7 @@ class Track {
   int playCount;
   final DateTime addedDate;
   bool isUnavailable;
+  String? artworkUrl;
 
   Track({
     required this.id,
@@ -41,6 +42,7 @@ class Track {
     this.playCount = 0,
     DateTime? addedDate,
     this.isUnavailable = false,
+    this.artworkUrl,
   })  : waveformPeaks = waveformPeaks ?? _generateApproximatedPeaks(id),
         addedDate = addedDate ?? DateTime.now();
 
@@ -77,6 +79,7 @@ class Track {
       'playCount': playCount,
       'addedDate': addedDate.toIso8601String(),
       'isUnavailable': isUnavailable,
+      'artworkUrl': artworkUrl,
     };
   }
 
@@ -107,6 +110,7 @@ class Track {
           ? DateTime.tryParse(map['addedDate'] as String) ?? DateTime.now()
           : DateTime.now(),
       isUnavailable: map['isUnavailable'] as bool? ?? false,
+      artworkUrl: map['artworkUrl'] as String?,
     );
   }
 
@@ -131,6 +135,7 @@ class Track {
     int? playCount,
     DateTime? addedDate,
     bool? isUnavailable,
+    String? artworkUrl,
   }) {
     return Track(
       id: id ?? this.id,
@@ -153,6 +158,7 @@ class Track {
       playCount: playCount ?? this.playCount,
       addedDate: addedDate ?? this.addedDate,
       isUnavailable: isUnavailable ?? this.isUnavailable,
+      artworkUrl: artworkUrl ?? this.artworkUrl,
     );
   }
 

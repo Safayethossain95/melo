@@ -441,6 +441,7 @@ class _SongsPageState extends State<SongsPage> {
 
   Widget _buildColumnHeader(String label, SongSortColumn col) {
     final isSelected = _sortColumn == col;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return InkWell(
       onTap: () {
         if (_sortColumn == col) {
@@ -460,7 +461,9 @@ class _SongsPageState extends State<SongsPage> {
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w700,
-              color: isSelected ? MeloColors.tealLight : MeloColors.darkTextMuted,
+              color: isSelected
+                  ? (isDark ? MeloColors.tealLight : MeloColors.tealDeep)
+                  : (isDark ? MeloColors.darkTextMuted : MeloColors.lightTextMuted),
               letterSpacing: 0.8,
             ),
           ),

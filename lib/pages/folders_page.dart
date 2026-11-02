@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import '../core/theme/melo_theme.dart';
 import '../models/folder_crate.dart';
+import '../models/track.dart';
 import '../services/audio_engine.dart';
 import '../services/library_repository.dart';
-import '../widgets/folder_crate_tile.dart';
-import '../widgets/glass_container.dart';
+import '../widgets/live_visualizer.dart';
 
-enum FolderViewMode { grid, list, tree }
 enum FolderSortBy { name, trackCount, duration }
 
 class FoldersPage extends StatefulWidget {
@@ -26,7 +25,6 @@ class FoldersPage extends StatefulWidget {
 }
 
 class _FoldersPageState extends State<FoldersPage> {
-  FolderViewMode _viewMode = FolderViewMode.grid;
   FolderSortBy _sortBy = FolderSortBy.name;
   bool _ascending = true;
 
@@ -69,7 +67,7 @@ class _FoldersPageState extends State<FoldersPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header & View Toggles
+              // Header & Controls
               if (isMobile) ...[
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -102,7 +100,7 @@ class _FoldersPageState extends State<FoldersPage> {
                         backgroundColor: MeloColors.primaryTeal,
                         foregroundColor: Colors.white,
                         elevation: 1,
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       ),
                       onPressed: () => widget.libraryRepo.importFolder(),
@@ -110,47 +108,8 @@ class _FoldersPageState extends State<FoldersPage> {
                       label: const Text('Add Folder', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
                     ),
                     const Spacer(),
-                    // View mode toggle
-                    Container(
-                      decoration: BoxDecoration(
-                        color: isDark ? MeloColors.darkSurface2 : MeloColors.lightSurface2,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: isDark ? MeloColors.darkBorder : MeloColors.lightBorder),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          _buildViewIconButton(FolderViewMode.grid, Icons.grid_view_rounded, 'Grid view'),
-                          _buildViewIconButton(FolderViewMode.list, Icons.view_list_rounded, 'List view'),
-                          _buildViewIconButton(FolderViewMode.tree, Icons.account_tree_rounded, 'Tree view'),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 8),
                     // Sort menu
-                    PopupMenuButton<FolderSortBy>(
-                      icon: Icon(
-                        Icons.sort_rounded,
-                        color: isDark ? MeloColors.darkTextSecondary : MeloColors.lightTextSecondary,
-                      ),
-                      tooltip: 'Sort by',
-                      color: isDark ? MeloColors.darkSurface1 : MeloColors.lightSurface1,
-                      onSelected: (val) {
-                        if (_sortBy == val) {
-                          setState(() => _ascending = !_ascending);
-                        } else {
-                          setState(() {
-                            _sortBy = val;
-                            _ascending = true;
-                          });
-                        }
-                      },
-                      itemBuilder: (context) => [
-                        const PopupMenuItem(value: FolderSortBy.name, child: Text('Sort by Name')),
-                        const PopupMenuItem(value: FolderSortBy.trackCount, child: Text('Sort by Track Count')),
-                        const PopupMenuItem(value: FolderSortBy.duration, child: Text('Sort by Duration')),
-                      ],
-                    ),
+                    _buildSortButton(isDark),
                   ],
                 ),
               ] else ...[
@@ -180,10 +139,9 @@ class _FoldersPageState extends State<FoldersPage> {
                       ],
                     ),
 
-                    // Controls: Add Folder, View Mode Toggle, Sort
+                    // Controls: Add Folder and Sort
                     Row(
                       children: [
-                        // Import folder button
                         ElevatedButton.icon(
                           style: ElevatedButton.styleFrom(
                             backgroundColor: MeloColors.primaryTeal,
@@ -197,239 +155,145 @@ class _FoldersPageState extends State<FoldersPage> {
                           label: const Text('Add Folder', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
                         ),
                         const SizedBox(width: 12),
-                        // View mode toggle
-                        Container(
-                          decoration: BoxDecoration(
-                            color: isDark ? MeloColors.darkSurface2 : MeloColors.lightSurface2,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: isDark ? MeloColors.darkBorder : MeloColors.lightBorder),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              _buildViewIconButton(FolderViewMode.grid, Icons.grid_view_rounded, 'Grid view'),
-                              _buildViewIconButton(FolderViewMode.list, Icons.view_list_rounded, 'List view'),
-                              _buildViewIconButton(FolderViewMode.tree, Icons.account_tree_rounded, 'Tree view'),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        // Sort menu
-                        PopupMenuButton<FolderSortBy>(
-                          icon: Icon(
-                            Icons.sort_rounded,
-                            color: isDark ? MeloColors.darkTextSecondary : MeloColors.lightTextSecondary,
-                          ),
-                          tooltip: 'Sort by',
-                          color: isDark ? MeloColors.darkSurface1 : MeloColors.lightSurface1,
-                          onSelected: (val) {
-                            if (_sortBy == val) {
-                              setState(() => _ascending = !_ascending);
-                            } else {
-                              setState(() {
-                                _sortBy = val;
-                                _ascending = true;
-                              });
-                            }
-                          },
-                          itemBuilder: (context) => [
-                            const PopupMenuItem(value: FolderSortBy.name, child: Text('Sort by Name')),
-                            const PopupMenuItem(value: FolderSortBy.trackCount, child: Text('Sort by Track Count')),
-                            const PopupMenuItem(value: FolderSortBy.duration, child: Text('Sort by Duration')),
-                          ],
-                        ),
+                        _buildSortButton(isDark),
                       ],
                     ),
                   ],
                 ),
               ],
 
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
 
-              // Content by View Mode
+              // Content: Folders Branch Tree Open Style
               if (crates.isEmpty)
                 Center(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 60),
                     child: Column(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.folder_off_rounded, size: 56, color: MeloColors.darkTextMuted),
-                        const SizedBox(height: 16),
-                        const Text(
-                          'No folders cataloged yet',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                        Icon(
+                          Icons.folder_off_rounded,
+                          size: 64,
+                          color: isDark ? MeloColors.darkTextMuted : MeloColors.lightTextMuted,
                         ),
-                        const SizedBox(height: 8),
-                        ElevatedButton(
-                          onPressed: () => widget.libraryRepo.importFiles(),
-                          child: const Text('Pick Audio Files'),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No music folders indexed yet',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: isDark ? MeloColors.darkTextPrimary : MeloColors.lightTextPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Tap "Add Folder" to index your audio collection',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: isDark ? MeloColors.darkTextMuted : MeloColors.lightTextMuted,
+                          ),
                         ),
                       ],
                     ),
                   ),
                 )
-              else if (_viewMode == FolderViewMode.grid) ...[
-                Builder(
-                  builder: (context) {
-                    final crossAxisCount = constraints.maxWidth > 1100
-                        ? 4
-                        : (constraints.maxWidth > 750 ? 3 : 2);
-                    final childAspectRatio = constraints.maxWidth < 500
-                        ? 0.78
-                        : (constraints.maxWidth < 800 ? 0.82 : 0.88);
+              else
+                _buildTreeView(crates, isDark),
 
-                    return GridView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: crates.length,
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: crossAxisCount,
-                        crossAxisSpacing: isMobile ? 12 : 18,
-                        mainAxisSpacing: isMobile ? 12 : 18,
-                        childAspectRatio: childAspectRatio,
-                      ),
-                      itemBuilder: (context, i) {
-                        final crate = crates[i];
-                        return FolderCrateTile(
-                          crate: crate,
-                          onTap: () => widget.onOpenFolder(crate),
-                          onPlayAll: () {
-                            if (crate.tracks.isNotEmpty) {
-                              widget.audioEngine.playTrack(crate.tracks.first, newQueue: crate.tracks);
-                            }
-                          },
-                          onShuffle: () {
-                            if (crate.tracks.isNotEmpty) {
-                              widget.audioEngine.playTrack(crate.tracks.first, newQueue: crate.tracks);
-                              if (!widget.audioEngine.isShuffle) widget.audioEngine.toggleShuffle();
-                            }
-                          },
-                        );
-                      },
-                    );
-                  },
-                ),
-              ] else if (_viewMode == FolderViewMode.list) ...[
-            ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: crates.length,
-              separatorBuilder: (context, index) => const SizedBox(height: 10),
-              itemBuilder: (context, i) {
-                final crate = crates[i];
-                return GlassContainer(
-                  borderRadius: 16,
-                  padding: const EdgeInsets.all(14),
-                  onTap: () => widget.onOpenFolder(crate),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: crate.sleeveColors.first,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Center(child: Icon(Icons.folder_rounded, color: Colors.white, size: 26)),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              crate.folderName,
-                              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
-                            ),
-                            const SizedBox(height: 3),
-                            Text(
-                              '${crate.trackCount} tracks • ${_formatDuration(crate.totalDuration)} • ${crate.folderPath}',
-                              style: const TextStyle(fontSize: 12, color: MeloColors.darkTextMuted),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.play_circle_fill_rounded, size: 32, color: MeloColors.primaryTeal),
-                        onPressed: () {
-                          if (crate.tracks.isNotEmpty) {
-                            widget.audioEngine.playTrack(crate.tracks.first, newQueue: crate.tracks);
-                          }
-                        },
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-          ] else ...[
-            // Tree View
-            _buildTreeView(crates, isDark),
-          ],
-
-          const SizedBox(height: 120),
-        ],
-      ),
-    );
-  },
-);
-  }
-
-  Widget _buildViewIconButton(FolderViewMode mode, IconData icon, String tooltip) {
-    final isSelected = _viewMode == mode;
-    return IconButton(
-      icon: Icon(
-        icon,
-        size: 18,
-        color: isSelected ? MeloColors.primaryTeal : MeloColors.darkTextMuted,
-      ),
-      onPressed: () => setState(() => _viewMode = mode),
-      tooltip: tooltip,
-      padding: const EdgeInsets.all(8),
-      constraints: const BoxConstraints(),
-    );
-  }
-
-  Widget _buildTreeView(List<FolderCrate> crates, bool isDark) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: crates.map((crate) {
-        return Container(
-          margin: const EdgeInsets.only(bottom: 8),
-          decoration: BoxDecoration(
-            color: isDark ? MeloColors.darkSurface2 : MeloColors.lightSurface2,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: isDark ? MeloColors.darkBorder : MeloColors.lightBorder),
-          ),
-          child: ExpansionTile(
-            leading: Icon(Icons.folder_rounded, color: crate.sleeveColors.first),
-            title: Text(
-              crate.folderName,
-              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
-            ),
-            subtitle: Text(
-              '${crate.trackCount} tracks • ${_formatDuration(crate.totalDuration)}',
-              style: const TextStyle(fontSize: 12, color: MeloColors.darkTextMuted),
-            ),
-            trailing: IconButton(
-              icon: const Icon(Icons.arrow_forward_rounded, size: 18, color: MeloColors.primaryTeal),
-              onPressed: () => widget.onOpenFolder(crate),
-            ),
-            children: crate.tracks.map((t) {
-              return ListTile(
-                dense: true,
-                leading: const Icon(Icons.music_note_rounded, size: 16, color: MeloColors.primaryTeal),
-                title: Text(t.title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                subtitle: Text(t.artist, style: const TextStyle(fontSize: 11, color: MeloColors.darkTextMuted)),
-                trailing: Text(_formatDuration(t.duration), style: const TextStyle(fontSize: 12)),
-                onTap: () => widget.audioEngine.playTrack(t, newQueue: crate.tracks),
-              );
-            }).toList(),
+              const SizedBox(height: 120),
+            ],
           ),
         );
-      }).toList(),
+      },
+    );
+  }
+
+  Widget _buildSortButton(bool isDark) {
+    return PopupMenuButton<FolderSortBy>(
+      icon: Icon(
+        Icons.sort_rounded,
+        color: isDark ? MeloColors.darkTextSecondary : MeloColors.lightTextSecondary,
+      ),
+      tooltip: 'Sort by',
+      color: isDark ? MeloColors.darkSurface1 : MeloColors.lightSurface1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      onSelected: (val) {
+        if (_sortBy == val) {
+          setState(() => _ascending = !_ascending);
+        } else {
+          setState(() {
+            _sortBy = val;
+            _ascending = true;
+          });
+        }
+      },
+      itemBuilder: (context) => [
+        PopupMenuItem(
+          value: FolderSortBy.name,
+          child: Row(
+            children: [
+              const Text('Sort by Name'),
+              if (_sortBy == FolderSortBy.name) ...[
+                const Spacer(),
+                Icon(_ascending ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded, size: 16, color: MeloColors.primaryTeal),
+              ],
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: FolderSortBy.trackCount,
+          child: Row(
+            children: [
+              const Text('Sort by Track Count'),
+              if (_sortBy == FolderSortBy.trackCount) ...[
+                const Spacer(),
+                Icon(_ascending ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded, size: 16, color: MeloColors.primaryTeal),
+              ],
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: FolderSortBy.duration,
+          child: Row(
+            children: [
+              const Text('Sort by Duration'),
+              if (_sortBy == FolderSortBy.duration) ...[
+                const Spacer(),
+                Icon(_ascending ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded, size: 16, color: MeloColors.primaryTeal),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Folders Branch Tree View (Closed at first, openable with one tap)
+  Widget _buildTreeView(List<FolderCrate> crates, bool isDark) {
+    return ListenableBuilder(
+      listenable: widget.audioEngine,
+      builder: (context, _) {
+        final currentTrack = widget.audioEngine.currentTrack;
+        final isPlaying = widget.audioEngine.isPlaying;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: crates.map((crate) {
+            return _FolderTreeCard(
+              key: ValueKey('crate_${crate.folderPath}'),
+              crate: crate,
+              isDark: isDark,
+              currentTrack: currentTrack,
+              isPlaying: isPlaying,
+              audioEngine: widget.audioEngine,
+              onOpenFolder: widget.onOpenFolder,
+              formatDuration: _formatDuration,
+              formatTrackDuration: _formatTrackDuration,
+            );
+          }).toList(),
+        );
+      },
     );
   }
 
@@ -437,5 +301,248 @@ class _FoldersPageState extends State<FoldersPage> {
     final mins = d.inMinutes;
     final secs = d.inSeconds % 60;
     return '${mins}m ${secs.toString().padLeft(2, '0')}s';
+  }
+
+  String _formatTrackDuration(Duration d) {
+    final mins = d.inMinutes;
+    final secs = d.inSeconds % 60;
+    return '$mins:${secs.toString().padLeft(2, '0')}';
+  }
+}
+
+class _FolderTreeCard extends StatefulWidget {
+  final FolderCrate crate;
+  final bool isDark;
+  final Track? currentTrack;
+  final bool isPlaying;
+  final MeloAudioEngine audioEngine;
+  final Function(FolderCrate) onOpenFolder;
+  final String Function(Duration) formatDuration;
+  final String Function(Duration) formatTrackDuration;
+
+  const _FolderTreeCard({
+    super.key,
+    required this.crate,
+    required this.isDark,
+    required this.currentTrack,
+    required this.isPlaying,
+    required this.audioEngine,
+    required this.onOpenFolder,
+    required this.formatDuration,
+    required this.formatTrackDuration,
+  });
+
+  @override
+  State<_FolderTreeCard> createState() => _FolderTreeCardState();
+}
+
+class _FolderTreeCardState extends State<_FolderTreeCard> {
+  bool _isExpanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final folderColor = widget.crate.sleeveColors.first;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: widget.isDark ? MeloColors.darkSurface2 : MeloColors.lightSurface2,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: widget.isDark ? MeloColors.darkBorder : MeloColors.lightBorder,
+        ),
+      ),
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          key: PageStorageKey<String>('folder_tree_${widget.crate.folderPath}'),
+          initiallyExpanded: false, // Closed at first, opens with one tap
+          onExpansionChanged: (expanded) => setState(() => _isExpanded = expanded),
+          shape: const Border(),
+          collapsedShape: const Border(),
+          tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          childrenPadding: const EdgeInsets.only(bottom: 12),
+          leading: Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: folderColor.withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Center(
+              child: Icon(
+                _isExpanded ? Icons.folder_open_rounded : Icons.folder_rounded,
+                color: folderColor,
+                size: 24,
+              ),
+            ),
+          ),
+          title: Text(
+            widget.crate.folderName,
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 15,
+              color: widget.isDark ? MeloColors.darkTextPrimary : MeloColors.lightTextPrimary,
+            ),
+          ),
+          subtitle: Text(
+            '${widget.crate.trackCount} tracks • ${widget.formatDuration(widget.crate.totalDuration)}',
+            style: TextStyle(
+              fontSize: 12,
+              color: widget.isDark ? MeloColors.darkTextMuted : MeloColors.lightTextMuted,
+            ),
+          ),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: const Icon(
+                  Icons.play_circle_fill_rounded,
+                  size: 28,
+                  color: MeloColors.primaryTeal,
+                ),
+                onPressed: () {
+                  if (widget.crate.tracks.isNotEmpty) {
+                    widget.audioEngine.playTrack(widget.crate.tracks.first, newQueue: widget.crate.tracks);
+                  }
+                },
+                tooltip: 'Play all in folder',
+              ),
+              AnimatedRotation(
+                turns: _isExpanded ? 0.25 : 0.0,
+                duration: const Duration(milliseconds: 200),
+                child: Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  size: 14,
+                  color: widget.isDark ? MeloColors.darkTextMuted : MeloColors.lightTextMuted,
+                ),
+              ),
+            ],
+          ),
+          children: widget.crate.tracks.asMap().entries.map((entry) {
+            final index = entry.key;
+            final track = entry.value;
+            final isCur = widget.currentTrack?.id == track.id;
+            final isLast = index == widget.crate.tracks.length - 1;
+
+            return InkWell(
+              onTap: () => widget.audioEngine.playTrack(track, newQueue: widget.crate.tracks),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+                color: isCur
+                    ? MeloColors.primaryTeal.withValues(alpha: widget.isDark ? 0.16 : 0.10)
+                    : Colors.transparent,
+                child: Row(
+                  children: [
+                    // Tree Branch Connector Line
+                    SizedBox(
+                      width: 32,
+                      height: 38,
+                      child: CustomPaint(
+                        painter: _TreeBranchPainter(
+                          isLast: isLast,
+                          color: (widget.isDark ? Colors.white24 : Colors.black26),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    // Mini Icon / Visualizer
+                    SizedBox(
+                      width: 22,
+                      child: isCur && widget.isPlaying
+                          ? const LiveVisualizer(isPlaying: true, barCount: 3, height: 14)
+                          : Icon(
+                              Icons.music_note_rounded,
+                              size: 16,
+                              color: isCur ? MeloColors.primaryTeal : (widget.isDark ? MeloColors.darkTextMuted : MeloColors.lightTextMuted),
+                            ),
+                    ),
+                    const SizedBox(width: 8),
+                    // Track Title & Artist
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            track.title,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: isCur ? FontWeight.w700 : FontWeight.w500,
+                              color: isCur
+                                  ? MeloColors.primaryTeal
+                                  : (widget.isDark ? MeloColors.darkTextPrimary : MeloColors.lightTextPrimary),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 1),
+                          Text(
+                            track.artist,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: widget.isDark ? MeloColors.darkTextMuted : MeloColors.lightTextMuted,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    // Duration
+                    Text(
+                      widget.formatTrackDuration(track.duration),
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: widget.isDark ? MeloColors.darkTextMuted : MeloColors.lightTextMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+}
+
+/// Custom painter to draw clean tree branch connector lines
+class _TreeBranchPainter extends CustomPainter {
+  final bool isLast;
+  final Color color;
+
+  _TreeBranchPainter({required this.isLast, required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 1.5
+      ..style = PaintingStyle.stroke;
+
+    final startX = size.width * 0.4;
+    final midY = size.height * 0.5;
+
+    // Vertical line coming from parent or previous sibling
+    canvas.drawLine(
+      Offset(startX, 0),
+      Offset(startX, isLast ? midY : size.height),
+      paint,
+    );
+
+    // Horizontal elbow branching into the track
+    canvas.drawLine(
+      Offset(startX, midY),
+      Offset(size.width, midY),
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _TreeBranchPainter oldDelegate) {
+    return oldDelegate.isLast != isLast || oldDelegate.color != color;
   }
 }

@@ -41,6 +41,7 @@ class MeloAudioEngine extends ChangeNotifier {
 
   // Rapid-input safety: Monotonically increasing request token
   int _requestToken = 0;
+  int _consecutiveErrors = 0;
 
   // Latency Probe
   final LatencyProbe _probe = LatencyProbe();
@@ -157,46 +158,91 @@ class MeloAudioEngine extends ChangeNotifier {
     onTrackPlayed?.call(track);
 
     // 2. Audio execution
+    bool started = false;
     try {
       // Check if standby player already has this preloaded
       if (_preloadedTrack?.id == track.id) {
-        // Swap decks instantly! (<30ms)
-        await _activePlayer.pause();
-        _usePlayerA = !_usePlayerA;
-        await _activePlayer.play();
-      } else {
-        // Load into active player
+        _preloadedTrack = null;
+        try {
+          await _activePlayer.pause();
+          _usePlayerA = !_usePlayerA;
+          await _activePlayer.play();
+          started = true;
+        } catch (deckError) {
+          if (kDebugMode) print('Standby deck swap failed, falling back to direct load: $deckError');
+          _usePlayerA = !_usePlayerA; // Revert active player
+        }
+      }
+
+      if (!started) {
+        _preloadedTrack = null;
         await _loadAudioSource(_activePlayer, track);
         if (_requestToken != token) return; // Discard stale request
         await _activePlayer.play();
       }
 
+      _consecutiveErrors = 0;
       _probe.recordComplete();
 
       // 3. Asynchronously preload the next track on the standby player
       _preloadNextTrack();
     } catch (e) {
       if (_requestToken != token) return;
-      if (kDebugMode) print('Audio playback error: $e');
+      if (kDebugMode) print('Audio playback error for "${track.title}": $e');
 
+      _consecutiveErrors++;
       track.isUnavailable = true;
-      onError?.call('Could not play "${track.title}". Skipping to next track.');
+      _isPlaying = false;
       notifyListeners();
 
-      // Fast failure recovery: auto-skip within 100ms
-      Future.delayed(const Duration(milliseconds: 100), () {
-        if (_requestToken == token) {
-          next();
-        }
-      });
+      // Limit auto-skip cascade to at most 2 tracks to prevent skipping through the whole library
+      if (_consecutiveErrors < queue.length && _consecutiveErrors <= 2) {
+        onError?.call('Could not play "${track.title}". Skipping to next track.');
+        Future.delayed(const Duration(milliseconds: 300), () {
+          if (_requestToken == token) {
+            next();
+          }
+        });
+      } else {
+        _consecutiveErrors = 0;
+        onError?.call('Could not play "${track.title}". Please verify file availability and storage permissions.');
+      }
     }
   }
 
   Future<void> _loadAudioSource(AudioPlayer player, Track track) async {
-    if (track.isAsset) {
-      await player.setAsset(track.uri);
-    } else {
-      await player.setFilePath(track.uri);
+    final uri = track.uri.trim();
+
+    // 1. Asset track
+    if (track.isAsset || uri.startsWith('assets/')) {
+      final assetPath = uri.startsWith('/') ? uri.substring(1) : uri;
+      try {
+        await player.setAsset(assetPath);
+      } catch (_) {
+        await player.setAudioSource(AudioSource.uri(Uri.parse('asset:///$assetPath')));
+      }
+      return;
+    }
+
+    // 2. Network stream
+    if (uri.startsWith('http://') || uri.startsWith('https://')) {
+      await player.setUrl(uri);
+      return;
+    }
+
+    // 3. Local file path
+    String cleanPath = uri;
+    if (cleanPath.startsWith('file://')) {
+      try {
+        cleanPath = Uri.parse(cleanPath).toFilePath();
+      } catch (_) {}
+    }
+
+    try {
+      await player.setFilePath(cleanPath);
+    } catch (_) {
+      // Fallback: try as file URI audio source
+      await player.setAudioSource(AudioSource.uri(Uri.file(cleanPath)));
     }
   }
 
@@ -213,10 +259,13 @@ class MeloAudioEngine extends ChangeNotifier {
     }
 
     final nextTrack = queue[nextIdx];
-    _preloadedTrack = nextTrack;
 
-    // Load into standby player in background without blocking
-    _loadAudioSource(_standbyPlayer, nextTrack).catchError((_) {});
+    // Only mark preloaded once loading successfully completes
+    _loadAudioSource(_standbyPlayer, nextTrack).then((_) {
+      _preloadedTrack = nextTrack;
+    }).catchError((_) {
+      _preloadedTrack = null;
+    });
   }
 
   void _onTrackFinished() {
