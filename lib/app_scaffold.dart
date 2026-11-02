@@ -17,6 +17,7 @@ import 'services/library_repository.dart';
 import 'widgets/floating_player_bar.dart';
 import 'widgets/melo_logo.dart';
 import 'widgets/now_playing_panel.dart';
+import 'widgets/storage_permission_dialog.dart';
 import 'widgets/track_row.dart';
 
 enum AppNavRoute {
@@ -50,11 +51,12 @@ class AppScaffold extends StatefulWidget {
   State<AppScaffold> createState() => _AppScaffoldState();
 }
 
-class _AppScaffoldState extends State<AppScaffold> {
+class _AppScaffoldState extends State<AppScaffold> with WidgetsBindingObserver {
   AppNavRoute _currentRoute = AppNavRoute.home;
   FolderCrate? _selectedFolderCrate;
   bool _isRightPanelOpen = false;
   bool _isSidebarCollapsed = false;
+  bool _hasCheckedPermissionOnLaunch = false;
 
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
@@ -63,26 +65,79 @@ class _AppScaffoldState extends State<AppScaffold> {
   @override
   void initState() {
     super.initState();
-    // Setup error callback toast
+    WidgetsBinding.instance.addObserver(this);
+
+    // Setup error callback toast with action to grant permission if missing
     widget.audioEngine.onError = (msg) {
       if (mounted) {
+        final isPermissionIssue = msg.toLowerCase().contains('permission') ||
+            msg.toLowerCase().contains('availability');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(msg),
             backgroundColor: MeloColors.favoriteRed,
-            duration: const Duration(seconds: 3),
+            duration: const Duration(seconds: 4),
+            action: isPermissionIssue
+                ? SnackBarAction(
+                    label: 'Grant',
+                    textColor: Colors.white,
+                    onPressed: () {
+                      StoragePermissionDialog.show(
+                        context,
+                        libraryRepo: widget.libraryRepo,
+                        onGranted: () => widget.libraryRepo.runInitialScan(),
+                      );
+                    },
+                  )
+                : null,
           ),
         );
       }
     };
+
+    // Check if storage permission is missing after first frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkStoragePermissionOnStartup();
+    });
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _searchController.dispose();
     _searchFocusNode.dispose();
     _keyboardFocusNode.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      widget.libraryRepo.hasStoragePermission().then((granted) {
+        if (granted && mounted && widget.libraryRepo.tracks.isEmpty) {
+          widget.libraryRepo.runInitialScan();
+        }
+      });
+    }
+  }
+
+  Future<void> _checkStoragePermissionOnStartup() async {
+    if (_hasCheckedPermissionOnLaunch || !mounted) return;
+    _hasCheckedPermissionOnLaunch = true;
+
+    final hasPerm = await widget.libraryRepo.hasStoragePermission();
+    if (!hasPerm && mounted) {
+      // Delay slightly for smooth page entrance animation
+      await Future.delayed(const Duration(milliseconds: 400));
+      if (!mounted) return;
+      StoragePermissionDialog.show(
+        context,
+        libraryRepo: widget.libraryRepo,
+        onGranted: () {
+          widget.libraryRepo.runInitialScan();
+        },
+      );
+    }
   }
 
   void _handleKeyEvent(KeyEvent event) {

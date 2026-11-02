@@ -4,6 +4,7 @@ import '../services/audio_engine.dart';
 import '../services/library_repository.dart';
 import '../widgets/glass_container.dart';
 import '../widgets/melo_logo.dart';
+import '../widgets/storage_permission_dialog.dart';
 
 class SettingsPage extends StatefulWidget {
   final LibraryRepository libraryRepo;
@@ -44,24 +45,16 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _requestPermission() async {
-    final granted = await widget.libraryRepo.requestStoragePermission();
-    if (mounted) {
-      setState(() => _storagePermissionGranted = granted);
-      if (!granted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Storage permission restricted. Please enable it in Settings.'),
-            action: SnackBarAction(
-              label: 'Settings',
-              onPressed: () => widget.libraryRepo.openPermissionSettings(),
-            ),
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('All Drive Storage permission granted!')),
-        );
-      }
+    final granted = await StoragePermissionDialog.show(
+      context,
+      libraryRepo: widget.libraryRepo,
+      onGranted: () {
+        _checkPermission();
+        widget.libraryRepo.runInitialScan();
+      },
+    );
+    if (mounted && granted != null) {
+      _checkPermission();
     }
   }
 

@@ -5,6 +5,7 @@ import 'core/theme/melo_theme.dart';
 import 'pages/onboarding_scan_screen.dart';
 import 'services/artwork_service.dart';
 import 'services/audio_engine.dart';
+import 'services/audio_output_service.dart';
 import 'services/library_repository.dart';
 
 void main() async {
@@ -25,6 +26,7 @@ void main() async {
   };
 
   await ArtworkService().init();
+  await AudioOutputService().init();
 
   final audioEngine = MeloAudioEngine();
   await audioEngine.init();

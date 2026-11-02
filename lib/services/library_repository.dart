@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/folder_crate.dart';
 import '../models/playlist.dart';
 import '../models/track.dart';
+import 'artwork_service.dart';
 
 class LibraryRepository extends ChangeNotifier {
   static final LibraryRepository _instance = LibraryRepository._internal();
@@ -84,6 +85,9 @@ class LibraryRepository extends ChangeNotifier {
           _tracks.add(Track.fromMap(item as Map<String, dynamic>));
         }
         _rebuildCrates();
+        ArtworkService().fetchAndCacheArtworksForTracks(_tracks).then((_) {
+          _saveToStorage();
+        });
       } catch (e) {
         if (kDebugMode) print('Failed to load cached library: $e');
       }
@@ -483,6 +487,11 @@ class LibraryRepository extends ChangeNotifier {
 
       _rebuildCrates();
       await _saveToStorage();
+
+      // Automatically background-fetch and cache online artwork into local storage for newly scanned songs
+      ArtworkService().fetchAndCacheArtworksForTracks(_tracks).then((_) {
+        _saveToStorage();
+      });
     } else {
       // If no local tracks found, retain/seed sample library so app remains playable
       if (_tracks.isEmpty) {
@@ -522,6 +531,9 @@ class LibraryRepository extends ChangeNotifier {
     if (added > 0) {
       _rebuildCrates();
       await _saveToStorage();
+      ArtworkService().fetchAndCacheArtworksForTracks(_tracks).then((_) {
+        _saveToStorage();
+      });
       notifyListeners();
     }
     return added;
@@ -558,6 +570,9 @@ class LibraryRepository extends ChangeNotifier {
     _isScanning = false;
     _rebuildCrates();
     await _saveToStorage();
+    ArtworkService().fetchAndCacheArtworksForTracks(_tracks).then((_) {
+      _saveToStorage();
+    });
     notifyListeners();
   }
 

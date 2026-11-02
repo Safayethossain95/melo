@@ -1,4 +1,5 @@
-import 'dart:typed_data';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../core/theme/melo_theme.dart';
 import '../models/track.dart';
@@ -78,7 +79,18 @@ class _SongArtworkState extends State<SongArtwork> {
       return;
     }
 
-    // 2. Check cached online URL
+    // 2. Check local disk storage
+    final local = _artworkService.getLocalArtworkFile(widget.track);
+    if (local != null && local.existsSync()) {
+      if (mounted) {
+        setState(() {
+          _onlineUrl = local.path;
+        });
+      }
+      return;
+    }
+
+    // 3. Check cached online URL
     final cachedUrl = _artworkService.getCachedOnlineUrl(widget.track);
     if (cachedUrl != null && cachedUrl.isNotEmpty) {
       setState(() {
@@ -87,7 +99,7 @@ class _SongArtworkState extends State<SongArtwork> {
       return;
     }
 
-    // 3. Attempt to fetch online if no thumbnail found
+    // 4. Attempt to fetch online if no thumbnail found
     final fetchedUrl = await _artworkService.fetchOnlineArtwork(widget.track);
     if (!mounted) return;
 
@@ -113,33 +125,48 @@ class _SongArtworkState extends State<SongArtwork> {
         errorBuilder: (_, _, _) => _buildFallback(dominant),
       );
     } else if (_onlineUrl != null && _onlineUrl!.isNotEmpty) {
-      imageContent = Image.network(
-        _onlineUrl!,
-        width: widget.width,
-        height: widget.height,
-        fit: widget.fit,
-        gaplessPlayback: true,
-        loadingBuilder: (context, child, loadingProgress) {
-          if (loadingProgress == null) return child;
-          return Stack(
-            fit: StackFit.expand,
-            children: [
-              _buildFallback(dominant),
-              const Center(
-                child: SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white70),
+      final isLocalFile = !kIsWeb &&
+          !_onlineUrl!.startsWith('http') &&
+          !_onlineUrl!.startsWith('blob:');
+
+      if (isLocalFile) {
+        imageContent = Image.file(
+          File(_onlineUrl!),
+          width: widget.width,
+          height: widget.height,
+          fit: widget.fit,
+          gaplessPlayback: true,
+          errorBuilder: (_, _, _) => _buildFallback(dominant),
+        );
+      } else {
+        imageContent = Image.network(
+          _onlineUrl!,
+          width: widget.width,
+          height: widget.height,
+          fit: widget.fit,
+          gaplessPlayback: true,
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) return child;
+            return Stack(
+              fit: StackFit.expand,
+              children: [
+                _buildFallback(dominant),
+                const Center(
+                  child: SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white70),
+                    ),
                   ),
                 ),
-              ),
-            ],
-          );
-        },
-        errorBuilder: (_, _, _) => _buildFallback(dominant),
-      );
+              ],
+            );
+          },
+          errorBuilder: (_, _, _) => _buildFallback(dominant),
+        );
+      }
     } else {
       imageContent = _buildFallback(dominant);
     }

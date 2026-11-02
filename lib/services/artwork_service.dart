@@ -1,7 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
+import 'dart:math';
 import 'package:audiotags/audiotags.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/track.dart';
@@ -17,10 +20,29 @@ class ArtworkService extends ChangeNotifier {
   final Set<String> _pendingLookups = {};
 
   SharedPreferences? _prefs;
+  Directory? _localArtworkDir;
 
   Future<void> init() async {
     try {
       _prefs = await SharedPreferences.getInstance();
+
+      if (!kIsWeb) {
+        String? basePath;
+        if (Platform.isAndroid) {
+          try {
+            const channel = MethodChannel('com.melo.app/audio_output');
+            basePath = await channel.invokeMethod<String>('getAppStoragePath');
+          } catch (_) {}
+        }
+        basePath ??= Platform.environment['LOCALAPPDATA'] ??
+            Platform.environment['APPDATA'] ??
+            Directory.current.path;
+
+        _localArtworkDir = Directory('$basePath/melo_artwork');
+        if (!_localArtworkDir!.existsSync()) {
+          _localArtworkDir!.createSync(recursive: true);
+        }
+      }
     } catch (e) {
       if (kDebugMode) print('ArtworkService init error: $e');
     }
@@ -56,8 +78,49 @@ class ArtworkService extends ChangeNotifier {
   /// Check whether embedded art is already cached in memory
   Uint8List? getCachedEmbeddedArt(String trackId) => _embeddedArtCache[trackId];
 
-  /// Get online artwork URL if available in memory, track model, or persistent cache
+  /// Returns the saved local image file on disk if already downloaded
+  File? getLocalArtworkFile(Track track) {
+    if (kIsWeb) return null;
+
+    // 1. Check if track.artworkUrl is already a valid local file path
+    if (track.artworkUrl != null &&
+        track.artworkUrl!.isNotEmpty &&
+        !track.artworkUrl!.startsWith('http') &&
+        !track.artworkUrl!.startsWith('blob:')) {
+      final f = File(track.artworkUrl!);
+      if (f.existsSync()) return f;
+    }
+
+    // 2. Check in local storage directory
+    if (_localArtworkDir != null) {
+      final fileKey = _cacheFileKey(track);
+      final f = File('${_localArtworkDir!.path}/$fileKey.jpg');
+      if (f.existsSync()) return f;
+    }
+
+    // 3. Check in persistent preferences
+    final key = _cacheKey(track);
+    final savedPath = _prefs?.getString(key);
+    if (savedPath != null &&
+        savedPath.isNotEmpty &&
+        !savedPath.startsWith('http') &&
+        !savedPath.startsWith('blob:')) {
+      final f = File(savedPath);
+      if (f.existsSync()) return f;
+    }
+
+    return null;
+  }
+
+  /// Get online artwork URL or local file path if available
   String? getCachedOnlineUrl(Track track) {
+    // Check local storage file first
+    final local = getLocalArtworkFile(track);
+    if (local != null && local.existsSync()) {
+      track.artworkUrl = local.path;
+      return local.path;
+    }
+
     if (track.artworkUrl != null && track.artworkUrl!.isNotEmpty) {
       return track.artworkUrl;
     }
@@ -80,6 +143,14 @@ class ArtworkService extends ChangeNotifier {
     return 'art_url_${cleanTitle}_$cleanArtist';
   }
 
+  String _cacheFileKey(Track track) {
+    final cleanTitle = track.title.trim().toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '_');
+    final cleanArtist = track.artist.trim().toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '_');
+    final hash = (cleanTitle.hashCode ^ cleanArtist.hashCode).abs();
+    final shortTitle = cleanTitle.substring(0, min(14, cleanTitle.length));
+    return '${shortTitle}_$hash';
+  }
+
   /// Check internet reachability safely without crashing
   Future<bool> hasInternet() async {
     if (kIsWeb) return true;
@@ -91,11 +162,15 @@ class ArtworkService extends ChangeNotifier {
     }
   }
 
-  /// Fetch album art from internet (iTunes -> Deezer fallback) if no local art exists
+  /// Fetch album art from internet, save to local storage, and return local file path
   Future<String?> fetchOnlineArtwork(Track track) async {
-    // Check if already in cache
-    final cached = getCachedOnlineUrl(track);
-    if (cached != null) return cached;
+    // 1. Check if already saved in local storage on disk
+    final localFile = getLocalArtworkFile(track);
+    if (localFile != null && localFile.existsSync()) {
+      track.artworkUrl = localFile.path;
+      _onlineUrlCache[track.id] = localFile.path;
+      return localFile.path;
+    }
 
     final lookupId = track.id;
     if (_pendingLookups.contains(lookupId)) return null;
@@ -108,19 +183,38 @@ class ArtworkService extends ChangeNotifier {
         return null;
       }
 
-      // 1. Search via iTunes Search API (no key required, supports HD 600x600 artwork)
-      String? url = await _fetchFromITunes(track);
+      // 2. Search via iTunes Search API (HD 600x600 artwork)
+      String? remoteUrl = await _fetchFromITunes(track);
 
-      // 2. Fallback to Deezer Search API if iTunes returned no results
-      url ??= await _fetchFromDeezer(track);
+      // 3. Fallback to Deezer Search API if iTunes returned no results
+      remoteUrl ??= await _fetchFromDeezer(track);
 
-      if (url != null && url.isNotEmpty) {
-        _onlineUrlCache[track.id] = url;
-        track.artworkUrl = url;
+      if (remoteUrl != null && remoteUrl.isNotEmpty) {
+        String finalArtworkPath = remoteUrl;
+
+        // 4. Download and save image bytes to app's local storage permanently
+        if (!kIsWeb && _localArtworkDir != null) {
+          try {
+            final imgRes = await http.get(Uri.parse(remoteUrl)).timeout(const Duration(seconds: 8));
+            if (imgRes.statusCode == 200 && imgRes.bodyBytes.isNotEmpty) {
+              final fileKey = _cacheFileKey(track);
+              final savedFile = File('${_localArtworkDir!.path}/$fileKey.jpg');
+              await savedFile.writeAsBytes(imgRes.bodyBytes);
+              if (savedFile.existsSync()) {
+                finalArtworkPath = savedFile.path;
+              }
+            }
+          } catch (e) {
+            if (kDebugMode) print('Failed to save image bytes to local storage: $e');
+          }
+        }
+
+        _onlineUrlCache[track.id] = finalArtworkPath;
+        track.artworkUrl = finalArtworkPath;
         final key = _cacheKey(track);
-        await _prefs?.setString(key, url);
+        await _prefs?.setString(key, finalArtworkPath);
         notifyListeners();
-        return url;
+        return finalArtworkPath;
       }
     } catch (e) {
       if (kDebugMode) print('Online artwork fetch failed for ${track.title}: $e');
@@ -129,6 +223,42 @@ class ArtworkService extends ChangeNotifier {
     }
 
     return null;
+  }
+
+  /// Automatically batch fetch and save missing thumbnails to local storage during library scan
+  Future<void> fetchAndCacheArtworksForTracks(List<Track> tracks) async {
+    if (kIsWeb) return;
+
+    final needingArtwork = <Track>[];
+    for (final track in tracks) {
+      if (track.isAsset) continue;
+      // Skip if already in memory
+      if (getCachedEmbeddedArt(track.id) != null) continue;
+      // Skip if already exists in local disk storage
+      final local = getLocalArtworkFile(track);
+      if (local != null && local.existsSync()) {
+        track.artworkUrl = local.path;
+        continue;
+      }
+      needingArtwork.add(track);
+    }
+
+    if (needingArtwork.isEmpty) return;
+
+    final online = await hasInternet();
+    if (!online) return;
+
+    // Concurrently fetch in chunks of 3 to avoid overwhelming bandwidth
+    for (int i = 0; i < needingArtwork.length; i += 3) {
+      final chunk = needingArtwork.sublist(i, min(i + 3, needingArtwork.length));
+      await Future.wait(chunk.map((t) async {
+        try {
+          await fetchOnlineArtwork(t);
+        } catch (_) {}
+      }));
+      // Brief breathing pause between batches
+      await Future.delayed(const Duration(milliseconds: 150));
+    }
   }
 
   Future<String?> _fetchFromITunes(Track track) async {

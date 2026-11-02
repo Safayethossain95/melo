@@ -2,10 +2,10 @@ import 'dart:math';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../core/theme/melo_theme.dart';
 import '../models/track.dart';
 import '../services/audio_engine.dart';
+import '../services/audio_output_service.dart';
 import '../services/artwork_service.dart';
 import '../services/library_repository.dart';
 import 'bouncing_tap.dart';
@@ -31,8 +31,6 @@ class NowPlayingPanel extends StatefulWidget {
 class _NowPlayingPanelState extends State<NowPlayingPanel> {
   bool _isDraggingSlider = false;
   double _dragSliderValue = 0.0;
-  String _outputDeviceName = 'HOCO EQ34 Plus ANC';
-
   late PageController _artPageController;
   int _lastSyncedIndex = 0;
   bool _isUserDraggingPage = false;
@@ -40,7 +38,6 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
   @override
   void initState() {
     super.initState();
-    _loadOutputDevice();
 
     final queue = widget.audioEngine.queue;
     final curIdx = widget.audioEngine.currentIndex;
@@ -80,23 +77,7 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
     }
   }
 
-  Future<void> _loadOutputDevice() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final saved = prefs.getString('melo_audio_output_device');
-      if (saved != null && saved.isNotEmpty && mounted) {
-        setState(() => _outputDeviceName = saved);
-      }
-    } catch (_) {}
-  }
 
-  Future<void> _setOutputDevice(String name) async {
-    setState(() => _outputDeviceName = name);
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('melo_audio_output_device', name);
-    } catch (_) {}
-  }
 
   String _formatDuration(Duration d) {
     final mins = d.inMinutes;
@@ -177,6 +158,8 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
               ),
             ),
             child: SafeArea(
+              top: false,
+              bottom: true,
               child: LayoutBuilder(
                 builder: (context, constraints) {
                   final isCompactHeight = constraints.maxHeight < 680;
@@ -363,8 +346,15 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
 
   // Top Bar
   Widget _buildTopBar(Track track, bool isDark) {
+    final mediaQuery = MediaQuery.of(context);
+    // viewPadding.top preserves the immutable status bar height (cutout/notification icons)
+    final statusBarHeight = mediaQuery.viewPadding.top > 0
+        ? mediaQuery.viewPadding.top
+        : mediaQuery.padding.top;
+    final topMargin = max(statusBarHeight, 26.0) + 8.0;
+
     return Padding(
-      padding: const EdgeInsets.only(left: 8, right: 8, top: 4, bottom: 2),
+      padding: EdgeInsets.only(left: 8, right: 8, top: topMargin, bottom: 2),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -1146,42 +1136,53 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
   Widget _buildBottomBar(Track track, bool isDark) {
     final routeAccent = isDark ? MeloColors.primaryTeal : MeloColors.tealDeep;
     final actionColor = isDark ? Colors.white : MeloColors.lightTextPrimary;
+    final outputService = AudioOutputService();
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // Audio Device Output Route
-          BouncingTap(
-            scaleDown: 0.94,
-            onTap: _showAudioOutputDialog,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.devices_rounded,
-                    size: 19,
-                    color: routeAccent,
+          // Audio Device Output Route (Dynamic Bluetooth TWS / Speaker)
+          ValueListenableBuilder<AudioOutputDevice>(
+            valueListenable: outputService.currentOutput,
+            builder: (context, currentDevice, _) {
+              return BouncingTap(
+                scaleDown: 0.94,
+                onTap: _showAudioOutputDialog,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
                   ),
-                  const SizedBox(width: 8),
-                  Text(
-                    _outputDeviceName,
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w700,
-                      color: routeAccent,
-                      letterSpacing: 0.2,
-                    ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        currentDevice.icon,
+                        size: 19,
+                        color: routeAccent,
+                      ),
+                      const SizedBox(width: 8),
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 180),
+                        child: Text(
+                          currentDevice.name,
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w700,
+                            color: routeAccent,
+                            letterSpacing: 0.2,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            ),
+                ),
+              );
+            },
           ),
 
           // Actions: Share & Queue
@@ -1237,12 +1238,8 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
   // Audio Output Selector Dialog
   void _showAudioOutputDialog() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final devices = [
-      {'name': 'HOCO EQ34 Plus ANC', 'icon': Icons.headphones_rounded},
-      {'name': 'Phone Speaker', 'icon': Icons.speaker_phone_rounded},
-      {'name': 'Bluetooth Audio Device', 'icon': Icons.bluetooth_audio_rounded},
-      {'name': 'USB-C / Aux Headset', 'icon': Icons.headset_rounded},
-    ];
+    final outputService = AudioOutputService();
+    outputService.refreshOutputs();
 
     showModalBottomSheet(
       context: context,
@@ -1253,61 +1250,99 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
       builder: (ctx) => SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Audio Output Route',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: isDark ? Colors.white : MeloColors.lightTextPrimary,
-                    ),
-                  ),
-                  IconButton(
-                    icon: Icon(
-                      Icons.close_rounded,
-                      color: isDark ? Colors.white70 : MeloColors.lightTextSecondary,
-                    ),
-                    onPressed: () => Navigator.pop(ctx),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              ...devices.map((d) {
-                final isSelected = d['name'] == _outputDeviceName;
-                return ListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  leading: Icon(
-                    d['icon'] as IconData,
-                    color: isSelected
-                        ? MeloColors.primaryTeal
-                        : (isDark ? Colors.white70 : MeloColors.lightTextSecondary),
-                  ),
-                  title: Text(
-                    d['name'] as String,
-                    style: TextStyle(
-                      color: isSelected
-                          ? MeloColors.primaryTeal
-                          : (isDark ? Colors.white : MeloColors.lightTextPrimary),
-                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                    ),
-                  ),
-                  trailing: isSelected
-                      ? const Icon(Icons.check_circle_rounded, color: MeloColors.primaryTeal)
-                      : null,
-                  onTap: () {
-                    _setOutputDevice(d['name'] as String);
-                    Navigator.pop(ctx);
-                  },
-                );
-              }),
-              const SizedBox(height: 8),
-            ],
+          child: ValueListenableBuilder<AudioOutputDevice>(
+            valueListenable: outputService.currentOutput,
+            builder: (context, activeDev, _) {
+              return ValueListenableBuilder<List<AudioOutputDevice>>(
+                valueListenable: outputService.availableOutputs,
+                builder: (context, devices, _) {
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Audio Output Route',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              color: isDark ? Colors.white : MeloColors.lightTextPrimary,
+                            ),
+                          ),
+                          IconButton(
+                            icon: Icon(
+                              Icons.close_rounded,
+                              color: isDark ? Colors.white70 : MeloColors.lightTextSecondary,
+                            ),
+                            onPressed: () => Navigator.pop(ctx),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      ...devices.map((d) {
+                        final isSelected = d.id == activeDev.id && d.type == activeDev.type;
+                        return ListTile(
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          leading: Icon(
+                            d.icon,
+                            color: isSelected
+                                ? MeloColors.primaryTeal
+                                : (isDark ? Colors.white70 : MeloColors.lightTextSecondary),
+                          ),
+                          title: Text(
+                            d.name,
+                            style: TextStyle(
+                              color: isSelected
+                                  ? MeloColors.primaryTeal
+                                  : (isDark ? Colors.white : MeloColors.lightTextPrimary),
+                              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                            ),
+                          ),
+                          subtitle: Text(
+                            d.isBluetooth
+                                ? 'Connected via Bluetooth'
+                                : (d.isSpeaker ? 'Built-in phone speaker' : 'Wired audio connection'),
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: isDark ? Colors.white54 : MeloColors.lightTextMuted,
+                            ),
+                          ),
+                          trailing: isSelected
+                              ? const Icon(Icons.check_circle_rounded, color: MeloColors.primaryTeal)
+                              : null,
+                          onTap: () {
+                            HapticFeedback.lightImpact();
+                            outputService.switchToDevice(d);
+                            Navigator.pop(ctx);
+                          },
+                        );
+                      }),
+                      const SizedBox(height: 8),
+                      // System output switcher button for Android
+                      ListTile(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                        leading: const Icon(Icons.settings_bluetooth_rounded, color: MeloColors.primaryTeal),
+                        title: Text(
+                          'Bluetooth & System Media Switcher',
+                          style: TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? Colors.white : MeloColors.lightTextPrimary,
+                          ),
+                        ),
+                        trailing: const Icon(Icons.open_in_new_rounded, size: 18, color: MeloColors.primaryTeal),
+                        onTap: () {
+                          outputService.openOutputSettings();
+                          Navigator.pop(ctx);
+                        },
+                      ),
+                    ],
+                  );
+                },
+              );
+            },
           ),
         ),
       ),
